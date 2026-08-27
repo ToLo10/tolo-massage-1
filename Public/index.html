@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOMI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <h1>Welcome to the TOMI</h1>
+    <div class="room-container">
+        <button id="createRoom">Create Room</button>
+        <input type="text" id="roomIdInput" placeholder="Enter Room ID">
+        <button id="joinRoom">Join Room</button>
+    </div>
+</body>
+<script>
+    document.getElementById('createRoom').addEventListener('click', () => {
+        const roomId = Math.random().toString(36).substring(2, 8); // Generate random Room ID
+        window.location.href = `/room.html?roomId=${roomId}`;
+    });
+
+    document.getElementById('joinRoom').addEventListener('click', () => {
+        const roomId = document.getElementById('roomIdInput').value.trim();
+        if (roomId) {
+            window.location.href = `/room.html?roomId=${roomId}`;
+        } else {
+            alert("Enter a valid Room ID");
+        }
+    });
+</script>
+
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOMI</title>
+    <link rel="stylesheet" href="room.css">
+</head>
+
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 90%; max-width: 600px;">
+        <h1>Room Chat</h1>
+        <button id="clearChatBtn" style="background-color: #ff4d4d; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold;">🗑️ مسح المحادثة</button>
+    </div>
+
+    <p id="roomInfo">
+        You are in Room: <span id="roomIdText"></span>
+        <button id="copyRoomId">📋</button>
+    </p>
+
+    <div id="chatContainer"></div>
+
+    <div id="statusIndicator" style="font-size: 13px; color: #6200ea; height: 20px; font-style: italic; margin-bottom: 5px;"></div>
+
+    <div id="stickerPicker">
+        <div id="pickerTabs">
+            <button class="tab-btn active" onclick="switchTab('emojisTab', this)">😃 Emojis</button>
+            <button class="tab-btn" onclick="switchTab('stickersTab', this)">👾 Stickers</button>
+        </div>
+
+        <div id="emojisTab" class="tab-content active">
+            <span class="emoji-item" onclick="insertEmoji('👍')">👍</span>
+            <span class="emoji-item" onclick="insertEmoji('❤️')">❤️</span>
+            <span class="emoji-item" onclick="insertEmoji('😂')">😂</span>
+            <span class="emoji-item" onclick="insertEmoji('🔥')">🔥</span>
+            <span class="emoji-item" onclick="insertEmoji('🎉')">🎉</span>
+            <span class="emoji-item" onclick="insertEmoji('😎')">😎</span>
+            <span class="emoji-item" onclick="insertEmoji('🙏')">🙏</span>
+            <span class="emoji-item" onclick="insertEmoji('😍')">😍</span>
+            <span class="emoji-item" onclick="insertEmoji('😭')">😭</span>
+            <span class="emoji-item" onclick="insertEmoji('✨')">✨</span>
+        </div>
+
+        <div id="stickersTab" class="tab-content">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2lqdWU1dngxaHNqdGNtbzl4cHZ0OG43bHp1NmtnN2V2dDRwOHpwbyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/EvYHHSntaIl5m/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2lqdWU1dngxaHNqdGNtbzl4cHZ0OG43bHp1NmtnN2V2dDRwOHpwbyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/OuQmhmAAdJFLi/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ajA3M3U0NmJuOTdrZ3RmODU3OHd6a2s2YW5vd3FtMzJ1NHRhaWppMCZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/TbRkubcqlgBksEqMv4/200w.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media2.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3YXFkMWFpZGxnNDY4eWk2cnV0Zms4aGVkeTZxdXdzd2syOG9rNGlydCZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/GRk3GLfzduq1NtfGt5/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bWZhbHU4NDc4eDhsaGJreHB2bXRicWk0N3VjMm1qNmI5M3hxb2JlMSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/vPzbDN4rBxuvtpSpzF/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ajI4cmN3ZXk0Y2o0NDQybzlubjYzdDQydnY5NnkyN2UxdnNjem9ydyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/GuDU8r5CnUoYtbS2CR/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NHRleHhndWRxdnQwNWRuMWd3NjBycW15aW93NHFhdzIza3IxcG1ueSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/VbnUQpnihPSIgIXuZv/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NHRleHhndWRxdnQwNWRuMWd3NjBycW15aW93NHFhdzIza3IxcG1ueSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/sMK7zYV1hGGAajEznq/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bWRrcGdobzBpazZweTlkYjhiZGg0bjVyenBhcHUyYzlrODVzN2VlciZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/H1dxi6xdh4NGQCZSvz/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bzBtdXFiMTUwd25laGswNHBxaHkzcDE4dDNuYWgyaDNqN2t0OHhwdCZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/eEg1ziKuWI9m9jVv2a/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3BwM3hvaXg2aWswM2l4NWVnN2Juc3d6cTMzcjN3emtwdHJpdjAxdSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/W1hd3uXRIbddu/200.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3BwM3hvaXg2aWswM2l4NWVnN2Juc3d6cTMzcjN3emtwdHJpdjAxdSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/dpSrm4cwUmCeQ/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3Y2VnaDhibXJ2emc0c2x3NGx6NjRpeXA5dmh3NTZoaHBsMGxxdXhlbSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/gRSqTmhQ3ayroAQ04S/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3Y2VnaDhibXJ2emc0c2x3NGx6NjRpeXA5dmh3NTZoaHBsMGxxdXhlbSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/Lx8z9ra4yYgtEDb7gq/200.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media1.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NTAxNDgzOG5sOXRxNXVqcjlmMWYxeWlzdnc2bDhjZ3FzNDA4NHE2MiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/is1t1s9xh0fra/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NTAxNDgzOG5sOXRxNXVqcjlmMWYxeWlzdnc2bDhjZ3FzNDA4NHE2MiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/MfhUoRSp05AxeSIoSW/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDhuaGpvaHQzdjF0eG8zN29oN2xobmZia2w2enc2cXFxcGV2bXZxMyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/mkhMTALnrYRLnuoe5P/200.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDhuaGpvaHQzdjF0eG8zN29oN2xobmZia2w2enc2cXFxcGV2bXZxMyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/1AE8LbiGWJHjXXjEU7/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3BqaGNmdXJmZjllNzBzOG1saGd4bHBja3NqeGl1MDRzZGFjbHl6MSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/zIatAEDb9NwwAd3cYE/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3YzN3dTl3NjN4ejJqMzA2eTRpeDBoNHgybWJrZjBvYzUyY2cwbmRtMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/swzv3OVyrIWvFwCArU/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExa3NrM25hcDk2NjBrNm5jczBxYnFlbHIxODd2aXB5Mjc0NzV2Zmp2bSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/eKQxZDL5OP8rK/giphy.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3l6NzdyYzdqNWh5c3FoMm53Y2MyNG5uaXduemo3bG9lcGV6aTF0YyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/HbDv8r4P7qkAH3dTEr/200.webp" onclick="sendSticker(this.src)">
+            <img class="sticker-item-img" src="https://media0.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3aG82aTBzazBkMnhvM3Q2YW84Y3F4amdtYzQxOHdmbnppc3dlcWlldSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/Kc4GBmzSDKnuTLLsUn/giphy.webp" onclick="sendSticker(this.src)">
+        </div>
+    </div>
+
+    <div class="input-container">
+        <button id="stickerBtn">😃</button>
+
+        <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;">
+        <button id="attachBtn" onclick="document.getElementById('mediaInput').click()">📎</button>
+        
+        <button id="recordBtn">🎤</button>
+
+        <input type="text" id="messageInput" placeholder="Enter your message">
+        <button id="sendBtn">Send</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let myUserId = localStorage.getItem("chat_user_id");
+        if (!myUserId) {
+            myUserId = "user-" + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem("chat_user_id", myUserId);
+        }
+
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('roomId');
+
+        const roomIdText = document.getElementById('roomIdText');
+        const copyButton = document.getElementById('copyRoomId');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatContainer = document.getElementById('chatContainer');
+        const mediaInput = document.getElementById('mediaInput');
+        const recordBtn = document.getElementById('recordBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const stickerBtn = document.getElementById('stickerBtn');
+        const stickerPicker = document.getElementById('stickerPicker');
+        const clearChatBtn = document.getElementById('clearChatBtn');
+
+        roomIdText.textContent = roomId;
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function joinRoom() {
+            if (roomId) {
+                socket.emit('join-room', { roomId, userId: myUserId });
+            }
+        }
+
+        socket.on('connect', () => {
+            joinRoom();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (!socket.connected) {
+                    socket.connect();
+                } else {
+                    joinRoom();
+                }
+            }
+        });
+
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(roomId).then(() => {
+                copyButton.textContent = "✔️"; 
+                setTimeout(() => copyButton.textContent = "📋", 1500); 
+            }).catch(err => console.error("Failed to copy:", err));
+        });
+
+        // زر مسح المحادثة بالكامل
+        clearChatBtn.addEventListener('click', () => {
+            if (confirm("هل انت متاكد من مسح جميع الرسائل في هذه الغرفة؟")) {
+                socket.emit('clear-room-history', roomId);
+            }
+        });
+
+        socket.on('chat-cleared', () => {
+            chatContainer.innerHTML = '';
+        });
+
+        // إظهار وإخفاء قائمة الإيموجيات والملصقات
+        stickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            stickerPicker.style.display = stickerPicker.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', () => {
+            stickerPicker.style.display = 'none';
+        });
+
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
+        function insertEmoji(emoji) {
+            messageInput.value += emoji;
+            messageInput.focus();
+        }
+
+        function sendSticker(stickerUrl) {
+            if (!roomId) return;
+            socket.emit('send-media', {
+                roomId: roomId,
+                fileData: stickerUrl,
+                fileType: 'sticker',
+                userId: myUserId,
+                time: getCurrentTime()
+            });
+            stickerPicker.style.display = 'none';
+        }
+
+        let typingTimeout;
+        function sendStatus(statusText) {
+            if (roomId) socket.emit('user-typing', { roomId, status: statusText });
+        }
+
+        messageInput.addEventListener('input', () => {
+            if (messageInput.value.length > 0) {
+                sendStatus('يكتب الآن...');
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => sendStatus(''), 2000);
+            } else {
+                sendStatus('');
+            }
+        });
+
+        socket.on('user-typing-status', (data) => {
+            statusIndicator.textContent = data.status;
+        });
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && roomId) {
+                const msgId = 'msg-' + Date.now();
+                const time = getCurrentTime();
+                socket.emit('user-message', { roomId, msg: message, msgId, userId: myUserId, time });
+                messageInput.value = '';
+                sendStatus('');
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function renderTextMessage(data) {
+            const isOwnMessage = (data.userId === myUserId);
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
+
+            const ticksHtml = isOwnMessage ? `<span id="tick-${data.msgId}" style="color: gray; margin-left: 4px;">✓</span>` : '';
+            const timeHtml = `<span style="font-size: 10px; color: #888; margin-left: 8px;">${data.time || ''}</span>`;
+
+            messageElement.innerHTML = `<span>${isOwnMessage ? 'You: ' : 'Other: '}${data.msg}</span> ${timeHtml} ${ticksHtml}`;
+            chatContainer.appendChild(messageElement);
+
+            if (!isOwnMessage) {
+                socket.emit('mark-as-read', { roomId, messageId: data.msgId });
+            }
+        }
+
+        socket.on('broadcast-message', (data) => {
+            renderTextMessage(data);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+
+        socket.on('message-read-status', (data) => {
+            const tickElement = document.getElementById(`tick-${data.messageId}`);
+            if (tickElement) {
+                tickElement.textContent = '✓✓';
+                tickElement.style.color = '#34b7f1';
+            }
+        });
+
+        // --- كود رفع وسائط الصور والفيديو مع الثواني المتبقية الواقعية ---
+        mediaInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || !roomId) return;
+
+            const fileType = file.type.startsWith('image') ? 'image' : 'video';
+            const tempId = 'upload_' + Date.now();
+            
+            // إنشاء رابط محلي للملف لعرض المعاينة فوراً
+            const objectUrl = URL.createObjectURL(file);
+
+            // 1. إنشاء فقاعة رسالة المرسل (باللون الأخضر)
+            const messageElement = document.createElement('div');
+            messageElement.id = tempId;
+            messageElement.classList.add('message', 'sent');
+
+            const senderLabel = document.createElement('strong');
+            senderLabel.textContent = 'You: ';
+            messageElement.appendChild(senderLabel);
+
+            // 2. حاوية الوسائط التي ستحتوي الصورة/الفيديو وطبقة التحميل
+            const mediaContainer = document.createElement('div');
+            mediaContainer.className = 'media-preview-container';
+
+            let mediaEl;
+            if (fileType === 'image') {
+                mediaEl = document.createElement('img');
+                mediaEl.style.maxWidth = '200px';
+            } else {
+                mediaEl = document.createElement('video');
+                mediaEl.controls = true;
+                mediaEl.style.maxWidth = '240px';
+            }
+            mediaEl.src = objectUrl;
+            mediaEl.style.borderRadius = '8px';
+            mediaEl.style.display = 'block';
+            mediaContainer.appendChild(mediaEl);
+
+            // 3. إضافة طبقة التظليل ودائرة إظهار الثواني المتبقية + النسبة
+            const overlay = document.createElement('div');
+            overlay.className = 'media-upload-overlay';
+            overlay.innerHTML = `
+                <div class="progress-circle">
+                    <span id="time-${tempId}" style="font-size: 11px; font-weight: bold; color: #fff;">...</span>
+                    <span id="percent-${tempId}" style="font-size: 9px; color: #1ac14a; margin-top: 1px;">0%</span>
+                </div>
+            `;
+            mediaContainer.appendChild(overlay);
+            
+            messageElement.appendChild(mediaContainer);
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            sendStatus(fileType === 'image' ? 'يرسل صورة...' : 'يرسل فيديو...');
+
+            // 4. قراءة الملف مع حساب وقت الرفع الحقيقي
+            const reader = new FileReader();
+            const startTime = Date.now(); // حساب زمن البداية
+
+            reader.onprogress = function (event) {
+                if (event.lengthComputable && event.loaded > 0) {
+                    const elapsedTime = (Date.now() - startTime) / 1000; // الوقت المنقضي بالثواني
+                    const uploadSpeed = event.loaded / elapsedTime; // السرعة بالبايت/ثانية
+                    const remainingBytes = event.total - event.loaded;
+                    const remainingSeconds = Math.ceil(remainingBytes / uploadSpeed); // الثواني المتبقية
+
+                    const percent = Math.round((event.loaded / event.total) * 100);
+
+                    const timeTxt = document.getElementById(`time-${tempId}`);
+                    const percentTxt = document.getElementById(`percent-${tempId}`);
+
+                    if (timeTxt) {
+                        timeTxt.innerText = remainingSeconds > 0 ? `${remainingSeconds}s` : '0s';
+                    }
+                    if (percentTxt) {
+                        percentTxt.innerText = percent + '%';
+                    }
+                }
+            };
+
+            reader.onload = function(event) {
+                socket.emit('send-media', {
+                    roomId: roomId,
+                    fileData: event.target.result,
+                    fileType: fileType,
+                    userId: myUserId,
+                    time: getCurrentTime()
+                });
+
+                mediaInput.value = '';
+                sendStatus('');
+                URL.revokeObjectURL(objectUrl);
+                
+                // إزالة الرسالة المؤقتة بدائرتها فوراً بعد الإرسال لتظهر الفقاعة النهائية الرسمية من السيرفر
+                const elem = document.getElementById(tempId);
+                if (elem) elem.remove();
+            };
+
+            reader.readAsDataURL(file);
+        });
+
+        // تسجيل الصوت
+        let mediaRecorder;
+        let audioChunks = [];
+
+        recordBtn.addEventListener('click', async () => {
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    
+                    mediaRecorder.onstop = () => {
+                        sendStatus('');
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            socket.emit('send-media', {
+                                roomId: roomId,
+                                fileData: reader.result,
+                                fileType: 'audio',
+                                userId: myUserId,
+                                time: getCurrentTime()
+                            });
+                        };
+                        reader.readAsDataURL(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    sendStatus('يسجل صوت... 🎤');
+                    recordBtn.textContent = "⏹️";
+                    recordBtn.style.backgroundColor = "#ff4d4d";
+                } catch (err) {
+                    alert("يرجى السماح بصلاحية المايكروفون للتسجيل!");
+                }
+            } else {
+                mediaRecorder.stop();
+                recordBtn.textContent = "🎤";
+                recordBtn.style.backgroundColor = "";
+            }
+        });
+
+        function renderMediaItem(data, container) {
+            const isOwnMessage = (data.userId === myUserId);
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
+
+            const senderLabel = document.createElement('strong');
+            senderLabel.textContent = isOwnMessage ? 'You: ' : 'Other: ';
+            messageElement.appendChild(senderLabel);
+
+            if (data.fileType === 'sticker') {
+                const stickerImg = document.createElement('img');
+                stickerImg.src = data.fileData;
+                stickerImg.classList.add('animated-sticker-msg');
+                messageElement.appendChild(stickerImg);
+            } else if (data.fileType === 'image') {
+                const img = document.createElement('img');
+                img.src = data.fileData;
+                img.style.maxWidth = '200px';
+                img.style.borderRadius = '8px';
+                img.style.display = 'block';
+                messageElement.appendChild(img);
+            } else if (data.fileType === 'video') {
+                const video = document.createElement('video');
+                video.src = data.fileData;
+                video.controls = true;
+                video.style.maxWidth = '240px';
+                video.style.borderRadius = '8px';
+                video.style.display = 'block';
+                messageElement.appendChild(video);
+            } else if (data.fileType === 'audio') {
+                const audio = document.createElement('audio');
+                audio.src = data.fileData;
+                audio.controls = true;
+                audio.style.display = 'block';
+                messageElement.appendChild(audio);
+            }
+
+            const timeHtml = `<div style="font-size: 10px; color: #888; text-align: right; margin-top: 3px;">${data.time || ''}</div>`;
+            messageElement.insertAdjacentHTML('beforeend', timeHtml);
+
+            container.appendChild(messageElement);
+        }
+
+        socket.on('receive-media', (data) => {
+            renderMediaItem(data, chatContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+
+        // تحميل المحادثة السابقة بالكامل فور الاتصال
+        socket.on('load-history', (history) => {
+            chatContainer.innerHTML = '';
+            history.forEach((data) => {
+                if (data.type === 'text') {
+                    renderTextMessage(data);
+                } else if (data.type === 'media') {
+                    renderMediaItem(data, chatContainer);
+                }
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    </script>
+</body>
+
+</html>
