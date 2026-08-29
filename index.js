@@ -258,6 +258,7 @@ io.on("connection", (socket) => {
       isHost: isOwner
     });
 
+    // إرسال سجل الرسائل متضمناً حالة isRead
     socket.emit("load-history", roomHistory[roomId]);
   });
 
@@ -273,7 +274,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("user-message", async ({ roomId, msg, msgId, userId, username, time, replyTo }) => {
-    const messageData = { type: "text", msg, msgId, userId, username, time, replyTo };
+    // تعيين isRead كـ false افتراضياً
+    const messageData = { type: "text", msg, msgId, userId, username, time, replyTo, isRead: false };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "text", roomId, msg, msgId, userId, username, time })
@@ -288,12 +290,19 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("broadcast-message", messageData);
   });
 
+  // تحديث حالة الرسالة لقارئها لتسجيل أنها مقروءة في السيرفر
   socket.on("mark-as-read", ({ roomId, messageId }) => {
+    if (roomHistory[roomId]) {
+      const targetMsg = roomHistory[roomId].find((m) => m.msgId === messageId);
+      if (targetMsg) {
+        targetMsg.isRead = true; // حفظ الحافظة في الذاكرة
+      }
+    }
     io.to(roomId).emit("message-read-status", { messageId });
   });
 
   socket.on("send-media", async ({ roomId, msgId, fileData, fileType, userId, username, time, replyTo }) => {
-    const mediaData = { type: "media", msgId, fileData, fileType, userId, username, time, replyTo };
+    const mediaData = { type: "media", msgId, fileData, fileType, userId, username, time, replyTo, isRead: false };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "media", roomId, fileData, fileType, userId, username, time })

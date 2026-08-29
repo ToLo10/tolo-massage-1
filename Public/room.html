@@ -631,7 +631,7 @@
             }
         });
 
-        function renderMediaItem(data, container) {
+        function renderMediaItem(data) {
             const isOwnMessage = (data.userId === myUserId);
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
@@ -682,16 +682,35 @@
                 const audio = document.createElement('audio');
                 audio.src = data.fileData;
                 audio.controls = true;
+                audio.style.maxWidth = '220px';
                 audio.style.display = 'block';
                 messageElement.appendChild(audio);
-                mediaSummaryText = 'تسجيل صوتي 🎤';
+                mediaSummaryText = 'رسالة صوتية 🎤';
             }
 
-            const footerContainer = document.createElement('div');
-            footerContainer.style.marginTop = '4px';
+            // الوقت وأيقونات إجراءات الرد والتفاعل
+            const footerDiv = document.createElement('div');
+            footerDiv.style.marginTop = '4px';
 
-            const timeHtml = `<span style="font-size: 10px; color: #888;">${data.time || ''}</span>`;
-            const actionsHtml = `
+            const timeSpan = document.createElement('span');
+            timeSpan.style.fontSize = '10px';
+            timeSpan.style.color = '#888';
+            timeSpan.style.marginLeft = '8px';
+            timeSpan.textContent = data.time || '';
+            footerDiv.appendChild(timeSpan);
+
+            if (isOwnMessage) {
+                const tickSpan = document.createElement('span');
+                tickSpan.id = `tick-${data.msgId}`;
+                tickSpan.style.color = 'gray';
+                tickSpan.style.marginLeft = '4px';
+                tickSpan.textContent = '✓';
+                footerDiv.appendChild(tickSpan);
+            }
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.style.display = 'inline-block';
+            actionsDiv.innerHTML = `
                 <span class="message-actions" onclick="setReply('${data.msgId}', '${displayName}', '${mediaSummaryText}')">↩️</span>
                 <span class="message-actions" onclick="toggleReactionPicker(event, '${data.msgId}')">😀</span>
                 <div id="reaction-picker-${data.msgId}" class="reaction-picker-mini">
@@ -702,28 +721,23 @@
                     <span onclick="sendReaction('${data.msgId}', '😮')">😮</span>
                 </div>
             `;
-            const reactionsBarHtml = `<div id="reactions-${data.msgId}" class="reactions-bar"></div>`;
+            footerDiv.appendChild(actionsDiv);
 
-            footerContainer.innerHTML = `${timeHtml} ${actionsHtml} ${reactionsBarHtml}`;
-            messageElement.appendChild(footerContainer);
+            const reactionsBar = document.createElement('div');
+            reactionsBar.id = `reactions-${data.msgId}`;
+            reactionsBar.className = 'reactions-bar';
+            footerDiv.appendChild(reactionsBar);
 
-            container.appendChild(messageElement);
+            messageElement.appendChild(footerDiv);
+            chatContainer.appendChild(messageElement);
+
+            if (!isOwnMessage) {
+                socket.emit('mark-as-read', { roomId, messageId: data.msgId });
+            }
         }
 
-        socket.on('receive-media', (data) => {
-            renderMediaItem(data, chatContainer);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        });
-
-        socket.on('load-history', (history) => {
-            chatContainer.innerHTML = '';
-            history.forEach((data) => {
-                if (data.type === 'text') {
-                    renderTextMessage(data);
-                } else if (data.type === 'media') {
-                    renderMediaItem(data, chatContainer);
-                }
-            });
+        socket.on('broadcast-media', (data) => {
+            renderMediaItem(data);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         });
     </script>
