@@ -6,6 +6,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOMI - Room</title>
     <link rel="stylesheet" href="room.css">
+    <style>
+        /* أنماط مخصصة للرد والتفاعلات */
+        .reply-preview-bar {
+            display: none;
+            background: #eef2f5;
+            border-right: 4px solid #6200ea;
+            padding: 6px 12px;
+            font-size: 12px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            position: relative;
+        }
+        .reply-preview-bar .close-reply {
+            position: absolute;
+            left: 8px;
+            top: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #888;
+        }
+        .reply-box-in-msg {
+            background: rgba(0, 0, 0, 0.05);
+            border-right: 3px solid #6200ea;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            color: #444;
+        }
+        .message-actions {
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .message-actions:hover {
+            opacity: 1;
+        }
+        .reactions-bar {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            font-size: 12px;
+        }
+        .reaction-badge {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 1px 6px;
+            font-size: 11px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .reaction-picker-mini {
+            display: none;
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 18px;
+            padding: 2px 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 100;
+        }
+        .reaction-picker-mini span {
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 14px;
+        }
+        .reaction-picker-mini span:hover {
+            transform: scale(1.2);
+        }
+        .message {
+            position: relative;
+        }
+    </style>
 </head>
 
 <body>
@@ -75,6 +150,13 @@
         </div>
     </div>
 
+    <!-- شريط معاينة الرد قبل الإرسال -->
+    <div id="replyPreview" class="reply-preview-bar">
+        <span class="close-reply" onclick="cancelReply()">✕</span>
+        <div>الرد على <strong id="replyTargetUser"></strong>:</div>
+        <div id="replyTargetText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+    </div>
+
     <div class="input-container">
         <button id="stickerBtn">😃</button>
 
@@ -97,6 +179,8 @@
 
         // جلب الاسم المستعار المخزن
         let myUsername = localStorage.getItem("chat_username") || "مستخدم";
+
+        let activeReplyData = null; // تخزين معلومات الرسالة المُراد الرد عليها
 
         const socket = io({
             reconnection: true,
@@ -124,6 +208,10 @@
         const hostControls = document.getElementById('hostControls');
         const capacityInput = document.getElementById('capacityInput');
         const updateCapacityBtn = document.getElementById('updateCapacityBtn');
+
+        const replyPreview = document.getElementById('replyPreview');
+        const replyTargetUser = document.getElementById('replyTargetUser');
+        const replyTargetText = document.getElementById('replyTargetText');
 
         roomIdText.textContent = roomId;
 
@@ -208,6 +296,7 @@
         // إغلاق النافذة عند النقر في أي مكان آخر في الصفحة
         document.addEventListener('click', () => {
             stickerPicker.style.display = 'none';
+            closeAllReactionPickers();
         });
 
         function switchTab(tabId, btnElement) {
@@ -226,13 +315,16 @@
             if (!roomId) return;
             socket.emit('send-media', {
                 roomId: roomId,
+                msgId: 'msg-' + Date.now(),
                 fileData: stickerUrl,
                 fileType: 'sticker',
                 userId: myUserId,
                 username: myUsername,
-                time: getCurrentTime()
+                time: getCurrentTime(),
+                replyTo: activeReplyData
             });
             stickerPicker.style.display = 'none';
+            cancelReply();
         }
 
         let typingTimeout;
@@ -254,14 +346,37 @@
             statusIndicator.textContent = data.status;
         });
 
+        // إعداد الرد على الرسالة
+        function setReply(msgId, username, text) {
+            activeReplyData = { msgId, username, text };
+            replyTargetUser.textContent = username;
+            replyTargetText.textContent = text;
+            replyPreview.style.display = 'block';
+            messageInput.focus();
+        }
+
+        function cancelReply() {
+            activeReplyData = null;
+            replyPreview.style.display = 'none';
+        }
+
         function sendMessage() {
             const message = messageInput.value.trim();
             if (message && roomId) {
                 const msgId = 'msg-' + Date.now();
                 const time = getCurrentTime();
-                socket.emit('user-message', { roomId, msg: message, msgId, userId: myUserId, username: myUsername, time });
+                socket.emit('user-message', { 
+                    roomId, 
+                    msg: message, 
+                    msgId, 
+                    userId: myUserId, 
+                    username: myUsername, 
+                    time,
+                    replyTo: activeReplyData
+                });
                 messageInput.value = '';
                 sendStatus('');
+                cancelReply();
             }
         }
 
@@ -270,18 +385,84 @@
             if (e.key === 'Enter') sendMessage();
         });
 
+        // قائمة التفاعل الميني
+        function toggleReactionPicker(e, msgId) {
+            e.stopPropagation();
+            closeAllReactionPickers();
+            const picker = document.getElementById(`reaction-picker-${msgId}`);
+            if (picker) {
+                picker.style.display = picker.style.display === 'flex' ? 'none' : 'flex';
+            }
+        }
+
+        function closeAllReactionPickers() {
+            document.querySelectorAll('.reaction-picker-mini').forEach(p => p.style.display = 'none');
+        }
+
+        function sendReaction(msgId, emoji) {
+            socket.emit('send-reaction', {
+                roomId,
+                msgId,
+                emoji,
+                userId: myUserId
+            });
+            closeAllReactionPickers();
+        }
+
+        socket.on('receive-reaction', (data) => {
+            const reactionsContainer = document.getElementById(`reactions-${data.msgId}`);
+            if (!reactionsContainer) return;
+
+            let badge = reactionsContainer.querySelector(`[data-emoji="${data.emoji}"]`);
+            if (badge) {
+                let count = parseInt(badge.getAttribute('data-count')) + 1;
+                badge.setAttribute('data-count', count);
+                badge.textContent = `${data.emoji} ${count}`;
+            } else {
+                badge = document.createElement('span');
+                badge.className = 'reaction-badge';
+                badge.setAttribute('data-emoji', data.emoji);
+                badge.setAttribute('data-count', '1');
+                badge.textContent = `${data.emoji} 1`;
+                reactionsContainer.appendChild(badge);
+            }
+        });
+
         function renderTextMessage(data) {
             const isOwnMessage = (data.userId === myUserId);
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
-
-            const ticksHtml = isOwnMessage ? `<span id="tick-${data.msgId}" style="color: gray; margin-left: 4px;">✓</span>` : '';
-            const timeHtml = `<span style="font-size: 10px; color: #888; margin-left: 8px;">${data.time || ''}</span>`;
+            messageElement.id = `msg-element-${data.msgId}`;
 
             const displayName = isOwnMessage ? 'أنت' : (data.username || 'مستخدم');
             const senderHeader = `<strong style="font-size: 11px; display: block; margin-bottom: 3px; color: ${isOwnMessage ? '#d1c4e9' : '#007bff'};">${displayName}</strong>`;
 
-            messageElement.innerHTML = `${senderHeader}<span>${data.msg}</span> ${timeHtml} ${ticksHtml}`;
+            // إضافة معاينة الرد إذا وجد
+            let replyHtml = '';
+            if (data.replyTo) {
+                replyHtml = `<div class="reply-box-in-msg">
+                    <strong>${data.replyTo.username}:</strong> ${data.replyTo.text}
+                </div>`;
+            }
+
+            const ticksHtml = isOwnMessage ? `<span id="tick-${data.msgId}" style="color: gray; margin-left: 4px;">✓</span>` : '';
+            const timeHtml = `<span style="font-size: 10px; color: #888; margin-left: 8px;">${data.time || ''}</span>`;
+            
+            const actionsHtml = `
+                <span class="message-actions" onclick="setReply('${data.msgId}', '${displayName}', '${data.msg.replace(/'/g, "\\'")}')">↩️</span>
+                <span class="message-actions" onclick="toggleReactionPicker(event, '${data.msgId}')">😀</span>
+                <div id="reaction-picker-${data.msgId}" class="reaction-picker-mini">
+                    <span onclick="sendReaction('${data.msgId}', '👍')">👍</span>
+                    <span onclick="sendReaction('${data.msgId}', '❤️')">❤️</span>
+                    <span onclick="sendReaction('${data.msgId}', '😂')">😂</span>
+                    <span onclick="sendReaction('${data.msgId}', '🔥')">🔥</span>
+                    <span onclick="sendReaction('${data.msgId}', '😮')">😮</span>
+                </div>
+            `;
+
+            const reactionsBarHtml = `<div id="reactions-${data.msgId}" class="reactions-bar"></div>`;
+
+            messageElement.innerHTML = `${senderHeader}${replyHtml}<span>${data.msg}</span> ${timeHtml} ${ticksHtml} ${actionsHtml} ${reactionsBarHtml}`;
             chatContainer.appendChild(messageElement);
 
             if (!isOwnMessage) {
@@ -308,6 +489,7 @@
 
             const fileType = file.type.startsWith('image') ? 'image' : 'video';
             const tempId = 'upload_' + Date.now();
+            const msgId = 'msg-' + Date.now();
             const objectUrl = URL.createObjectURL(file);
 
             const messageElement = document.createElement('div');
@@ -382,15 +564,18 @@
             reader.onload = function(event) {
                 socket.emit('send-media', {
                     roomId: roomId,
+                    msgId: msgId,
                     fileData: event.target.result,
                     fileType: fileType,
                     userId: myUserId,
                     username: myUsername,
-                    time: getCurrentTime()
+                    time: getCurrentTime(),
+                    replyTo: activeReplyData
                 });
 
                 mediaInput.value = '';
                 sendStatus('');
+                cancelReply();
                 URL.revokeObjectURL(objectUrl);
                 
                 const elem = document.getElementById(tempId);
@@ -419,12 +604,15 @@
                         reader.onloadend = () => {
                             socket.emit('send-media', {
                                 roomId: roomId,
+                                msgId: 'msg-' + Date.now(),
                                 fileData: reader.result,
                                 fileType: 'audio',
                                 userId: myUserId,
                                 username: myUsername,
-                                time: getCurrentTime()
+                                time: getCurrentTime(),
+                                replyTo: activeReplyData
                             });
+                            cancelReply();
                         };
                         reader.readAsDataURL(audioBlob);
                     };
@@ -447,6 +635,7 @@
             const isOwnMessage = (data.userId === myUserId);
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
+            messageElement.id = `msg-element-${data.msgId}`;
 
             const displayName = isOwnMessage ? 'أنت' : (data.username || 'مستخدم');
             const senderLabel = document.createElement('strong');
@@ -457,11 +646,21 @@
             senderLabel.textContent = displayName;
             messageElement.appendChild(senderLabel);
 
+            if (data.replyTo) {
+                const replyDiv = document.createElement('div');
+                replyDiv.className = 'reply-box-in-msg';
+                replyDiv.innerHTML = `<strong>${data.replyTo.username}:</strong> ${data.replyTo.text}`;
+                messageElement.appendChild(replyDiv);
+            }
+
+            let mediaSummaryText = `[${data.fileType}]`;
+
             if (data.fileType === 'sticker') {
                 const stickerImg = document.createElement('img');
                 stickerImg.src = data.fileData;
                 stickerImg.classList.add('animated-sticker-msg');
                 messageElement.appendChild(stickerImg);
+                mediaSummaryText = 'ملصق 👾';
             } else if (data.fileType === 'image') {
                 const img = document.createElement('img');
                 img.src = data.fileData;
@@ -469,6 +668,7 @@
                 img.style.borderRadius = '8px';
                 img.style.display = 'block';
                 messageElement.appendChild(img);
+                mediaSummaryText = 'صورة 📷';
             } else if (data.fileType === 'video') {
                 const video = document.createElement('video');
                 video.src = data.fileData;
@@ -477,16 +677,35 @@
                 video.style.borderRadius = '8px';
                 video.style.display = 'block';
                 messageElement.appendChild(video);
+                mediaSummaryText = 'فيديو 🎥';
             } else if (data.fileType === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = data.fileData;
                 audio.controls = true;
                 audio.style.display = 'block';
                 messageElement.appendChild(audio);
+                mediaSummaryText = 'تسجيل صوتي 🎤';
             }
 
-            const timeHtml = `<div style="font-size: 10px; color: #888; text-align: right; margin-top: 3px;">${data.time || ''}</div>`;
-            messageElement.insertAdjacentHTML('beforeend', timeHtml);
+            const footerContainer = document.createElement('div');
+            footerContainer.style.marginTop = '4px';
+
+            const timeHtml = `<span style="font-size: 10px; color: #888;">${data.time || ''}</span>`;
+            const actionsHtml = `
+                <span class="message-actions" onclick="setReply('${data.msgId}', '${displayName}', '${mediaSummaryText}')">↩️</span>
+                <span class="message-actions" onclick="toggleReactionPicker(event, '${data.msgId}')">😀</span>
+                <div id="reaction-picker-${data.msgId}" class="reaction-picker-mini">
+                    <span onclick="sendReaction('${data.msgId}', '👍')">👍</span>
+                    <span onclick="sendReaction('${data.msgId}', '❤️')">❤️</span>
+                    <span onclick="sendReaction('${data.msgId}', '😂')">😂</span>
+                    <span onclick="sendReaction('${data.msgId}', '🔥')">🔥</span>
+                    <span onclick="sendReaction('${data.msgId}', '😮')">😮</span>
+                </div>
+            `;
+            const reactionsBarHtml = `<div id="reactions-${data.msgId}" class="reactions-bar"></div>`;
+
+            footerContainer.innerHTML = `${timeHtml} ${actionsHtml} ${reactionsBarHtml}`;
+            messageElement.appendChild(footerContainer);
 
             container.appendChild(messageElement);
         }
