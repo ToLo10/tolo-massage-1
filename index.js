@@ -221,6 +221,7 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ roomId, userId, maxUsers, isHost }) => {
     if (!roomId || !userId) return;
 
+    // 1. إنشاء الغرفة وتحديد السعة والمالك بناءً على userId بدلاً من socket.id
     if (!roomsSettings[roomId]) {
       roomsSettings[roomId] = {
         maxUsers: parseInt(maxUsers) || 24,
@@ -232,17 +233,22 @@ io.on("connection", (socket) => {
       roomsSettings[roomId].hostUserId = userId;
     }
 
+    // 2. حساب المتواجدين حالياً بالغرفة
     const room = io.sockets.adapter.rooms.get(roomId);
     const currentUsersCount = room ? room.size : 0;
+
+    // 3. التحقق مما إذا كان المستخدم متواجداً أصلاً من قبل (إعادة اتصال)
     const isAlreadyConnected = room && socket.rooms.has(roomId);
 
+    // 4. حظر المتطفل فوراً إذا تجاوزت السعة الحد المسموح
     if (!isAlreadyConnected && currentUsersCount >= roomsSettings[roomId].maxUsers) {
       socket.emit("room-full", {
         message: "عذراً، الغرفة ممتلئة ولا يمكنك الانضمام الآن."
       });
-      return;
+      return; // إيقاف العملية: لن ينضم للغرفة ولن يحصل على الـ History
     }
 
+    // 5. السماح بالدخول الرسمي
     socket.join(roomId);
     socket.userId = userId;
     socket.roomId = roomId;
@@ -251,6 +257,7 @@ io.on("connection", (socket) => {
       roomHistory[roomId] = [];
     }
 
+    // التحقق من هوية المالك بواسطة userId
     const isOwner = roomsSettings[roomId].hostUserId === userId;
 
     socket.emit("room-info", {
@@ -258,10 +265,11 @@ io.on("connection", (socket) => {
       isHost: isOwner
     });
 
-    // إرسال سجل الرسائل كاملاً (نص + ميديا) فور انضمام أو دخول المستخدم
+    // إرسال الأرشيف للمقبول فقط
     socket.emit("load-history", roomHistory[roomId]);
   });
 
+  // تحديث سعة الغرفة بـ userId
   socket.on("update-room-capacity", ({ roomId, newMax }) => {
     if (roomsSettings[roomId] && roomsSettings[roomId].hostUserId === socket.userId) {
       roomsSettings[roomId].maxUsers = parseInt(newMax);
@@ -273,8 +281,8 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("user-typing-status", { id: socket.id, status });
   });
 
-  socket.on("user-message", async ({ roomId, msg, msgId, userId, username, time, replyTo }) => {
-    const messageData = { type: "text", msg, msgId, userId, username, time, replyTo, isRead: false, reactions: [] };
+  socket.on("user-message", async ({ roomId, msg, msgId, userId, username, time }) => {
+    const messageData = { type: "text", msg, msgId, userId, username, time };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "text", roomId, msg, msgId, userId, username, time })
@@ -289,19 +297,12 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("broadcast-message", messageData);
   });
 
-  // تحديث حالة الرسالة لقارئها لتسجيل أنها مقروءة في السيرفر
   socket.on("mark-as-read", ({ roomId, messageId }) => {
-    if (roomHistory[roomId]) {
-      const targetMsg = roomHistory[roomId].find((m) => m.msgId === messageId);
-      if (targetMsg) {
-        targetMsg.isRead = true;
-      }
-    }
     io.to(roomId).emit("message-read-status", { messageId });
   });
 
-  socket.on("send-media", async ({ roomId, msgId, fileData, fileType, userId, username, time, replyTo }) => {
-    const mediaData = { type: "media", msgId, fileData, fileType, userId, username, time, replyTo, isRead: false, reactions: [] };
+  socket.on("send-media", async ({ roomId, fileData, fileType, userId, username, time }) => {
+    const mediaData = { type: "media", fileData, fileType, userId, username, time };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "media", roomId, fileData, fileType, userId, username, time })
@@ -312,21 +313,7 @@ io.on("connection", (socket) => {
 
     saveMediaToFile(roomId, userId, username, fileData, fileType);
 
-    // توحيد اسم الحدث إلى broadcast-media ليتطابق مع العميل
-    io.to(roomId).emit("broadcast-media", mediaData);
-  });
-
-  // حدث التفاعل مع الرسائل (Emoji Reaction) مع الحفظ في سجل المحادثة
-  socket.on("send-reaction", (data) => {
-    const { roomId, msgId, emoji } = data;
-    if (roomHistory[roomId]) {
-      const msg = roomHistory[roomId].find((m) => m.msgId === msgId);
-      if (msg) {
-        if (!msg.reactions) msg.reactions = [];
-        msg.reactions.push(emoji);
-      }
-    }
-    io.to(roomId).emit("receive-reaction", data);
+    io.to(roomId).emit("receive-media", mediaData);
   });
 
   socket.on("clear-room-history", async (roomId) => {
