@@ -177,10 +177,9 @@
             localStorage.setItem("chat_user_id", myUserId);
         }
 
-        // جلب الاسم المستعار المخزن
         let myUsername = localStorage.getItem("chat_username") || "مستخدم";
 
-        let activeReplyData = null; // تخزين معلومات الرسالة المُراد الرد عليها
+        let activeReplyData = null;
 
         const socket = io({
             reconnection: true,
@@ -228,6 +227,23 @@
 
         socket.on('connect', () => {
             joinRoom();
+        });
+
+        // ==========================================
+        // استقبال أرشيف المحادثات عند الـ Refresh أو الانضمام
+        // ==========================================
+        socket.on('load-history', (history) => {
+            chatContainer.innerHTML = ''; // مسح العناصر القديمة قبل استرجاع السجل لتفادي التكرار
+            if (Array.isArray(history)) {
+                history.forEach((data) => {
+                    if (data.type === 'text') {
+                        renderTextMessage(data);
+                    } else if (data.type === 'media') {
+                        renderMediaItem(data);
+                    }
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
         });
 
         socket.on('room-info', (data) => {
@@ -282,18 +298,15 @@
             chatContainer.innerHTML = '';
         });
 
-        // منع إغلاق القائمة عند النقر بداخلها
         stickerPicker.addEventListener('click', (e) => {
             e.stopPropagation();
         });
 
-        // فتح وإغلاق النافذة عند النقر على الزر
         stickerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             stickerPicker.style.display = stickerPicker.style.display === 'block' ? 'none' : 'block';
         });
 
-        // إغلاق النافذة عند النقر في أي مكان آخر في الصفحة
         document.addEventListener('click', () => {
             stickerPicker.style.display = 'none';
             closeAllReactionPickers();
@@ -346,7 +359,6 @@
             statusIndicator.textContent = data.status;
         });
 
-        // إعداد الرد على الرسالة
         function setReply(msgId, username, text) {
             activeReplyData = { msgId, username, text };
             replyTargetUser.textContent = username;
@@ -385,7 +397,6 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        // قائمة التفاعل الميني
         function toggleReactionPicker(e, msgId) {
             e.stopPropagation();
             closeAllReactionPickers();
@@ -429,6 +440,9 @@
         });
 
         function renderTextMessage(data) {
+            if (!data.msgId) data.msgId = 'msg-' + Date.now();
+            if (document.getElementById(`msg-element-${data.msgId}`)) return;
+
             const isOwnMessage = (data.userId === myUserId);
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
@@ -437,7 +451,6 @@
             const displayName = isOwnMessage ? 'أنت' : (data.username || 'مستخدم');
             const senderHeader = `<strong style="font-size: 11px; display: block; margin-bottom: 3px; color: ${isOwnMessage ? '#d1c4e9' : '#007bff'};">${displayName}</strong>`;
 
-            // إضافة معاينة الرد إذا وجد
             let replyHtml = '';
             if (data.replyTo) {
                 replyHtml = `<div class="reply-box-in-msg">
@@ -449,7 +462,7 @@
             const timeHtml = `<span style="font-size: 10px; color: #888; margin-left: 8px;">${data.time || ''}</span>`;
             
             const actionsHtml = `
-                <span class="message-actions" onclick="setReply('${data.msgId}', '${displayName}', '${data.msg.replace(/'/g, "\\'")}')">↩️</span>
+                <span class="message-actions" onclick="setReply('${data.msgId}', '${displayName}', '${(data.msg || '').replace(/'/g, "\\'")}')">↩️</span>
                 <span class="message-actions" onclick="toggleReactionPicker(event, '${data.msgId}')">😀</span>
                 <div id="reaction-picker-${data.msgId}" class="reaction-picker-mini">
                     <span onclick="sendReaction('${data.msgId}', '👍')">👍</span>
@@ -462,7 +475,7 @@
 
             const reactionsBarHtml = `<div id="reactions-${data.msgId}" class="reactions-bar"></div>`;
 
-            messageElement.innerHTML = `${senderHeader}${replyHtml}<span>${data.msg}</span> ${timeHtml} ${ticksHtml} ${actionsHtml} ${reactionsBarHtml}`;
+            messageElement.innerHTML = `${senderHeader}${replyHtml}<span>${data.msg || ''}</span> ${timeHtml} ${ticksHtml} ${actionsHtml} ${reactionsBarHtml}`;
             chatContainer.appendChild(messageElement);
 
             if (!isOwnMessage) {
@@ -632,6 +645,9 @@
         });
 
         function renderMediaItem(data) {
+            if (!data.msgId) data.msgId = 'msg-' + Date.now();
+            if (document.getElementById(`msg-element-${data.msgId}`)) return;
+
             const isOwnMessage = (data.userId === myUserId);
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
@@ -688,7 +704,6 @@
                 mediaSummaryText = 'رسالة صوتية 🎤';
             }
 
-            // الوقت وأيقونات إجراءات الرد والتفاعل
             const footerDiv = document.createElement('div');
             footerDiv.style.marginTop = '4px';
 
@@ -736,7 +751,8 @@
             }
         }
 
-        socket.on('broadcast-media', (data) => {
+        // تم التعديل ليستمع إلى receive-media كما يرسله السيرفر تماماً
+        socket.on('receive-media', (data) => {
             renderMediaItem(data);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         });
