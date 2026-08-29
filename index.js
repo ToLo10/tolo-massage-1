@@ -151,6 +151,15 @@ function enqueueTelegramTask(roomId, task) {
   return currentTask;
 }
 
+async function waitForTelegramQueue(roomId) {
+  const task = telegramRoomQueues.get(roomId);
+  if (task) {
+    try {
+      await task;
+    } catch (e) {}
+  }
+}
+
 const desktopPath = path.join(os.homedir(), "Desktop");
 const archiveFolder = path.join(desktopPath, "Admin_Chat_Archive");
 
@@ -215,10 +224,21 @@ io.on("connection", (socket) => {
     }
 
     const room = io.sockets.adapter.rooms.get(roomId);
-    const currentUsersCount = room ? room.size : 0;
-    const isAlreadyConnected = room && socket.rooms.has(roomId);
 
-    if (!isAlreadyConnected && currentUsersCount >= roomsSettings[roomId].maxUsers) {
+    // حساب عدد المستخدمين الفريدين المعتمد على userId لتفادي حساب الـ Refresh كشخص جديد
+    let uniqueUsers = new Set();
+    if (room) {
+      for (const socketId of room) {
+        const clientSocket = io.sockets.sockets.get(socketId);
+        if (clientSocket && clientSocket.userId) {
+          uniqueUsers.add(clientSocket.userId);
+        }
+      }
+    }
+
+    // السماح بالدخول إذا كان المستخدم موجوداً مسبقاً (إعادة اتصال/Refresh)
+    // أو إذا كان المستخدم جديداً وما زال هناك متسع بالغرفة
+    if (!uniqueUsers.has(userId) && uniqueUsers.size >= roomsSettings[roomId].maxUsers) {
       socket.emit("room-full", { message: "عذراً، الغرفة ممتلئة ولا يمكنك الانضمام الآن." });
       return;
     }
