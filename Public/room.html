@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TOMI</title>
+    <title>TOMI - Room</title>
     <link rel="stylesheet" href="room.css">
 </head>
 
@@ -15,9 +15,16 @@
     </div>
 
     <p id="roomInfo">
-        You are in Room: <span id="roomIdText"></span>
+        أنت في الغرفة: <span id="roomIdText"></span>
         <button id="copyRoomId">📋</button>
     </p>
+
+    <!-- لوحة تحكم السعة (تظهر فقط لصاحب الغرفة) -->
+    <div id="hostControls" style="display: none; background: #f0f0f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; width: 90%; max-width: 600px;">
+        <label for="capacityInput"><strong>سعة الغرفة القصوى:</strong></label>
+        <input type="number" id="capacityInput" min="1" max="100" style="width: 60px; padding: 4px;">
+        <button id="updateCapacityBtn" style="background: #6200ea; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">تحديث السعة</button>
+    </div>
 
     <div id="chatContainer"></div>
 
@@ -77,8 +84,8 @@
         
         <button id="recordBtn">🎤</button>
 
-        <input type="text" id="messageInput" placeholder="Enter your message">
-        <button id="sendBtn">Send</button>
+        <input type="text" id="messageInput" placeholder="أدخل رسالتك هنا...">
+        <button id="sendBtn">إرسال</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -97,6 +104,8 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('roomId');
+        const maxUsers = urlParams.get('maxUsers') || 24;
+        const isHost = urlParams.get('isHost') === 'true';
 
         const roomIdText = document.getElementById('roomIdText');
         const copyButton = document.getElementById('copyRoomId');
@@ -110,6 +119,10 @@
         const stickerPicker = document.getElementById('stickerPicker');
         const clearChatBtn = document.getElementById('clearChatBtn');
 
+        const hostControls = document.getElementById('hostControls');
+        const capacityInput = document.getElementById('capacityInput');
+        const updateCapacityBtn = document.getElementById('updateCapacityBtn');
+
         roomIdText.textContent = roomId;
 
         function getCurrentTime() {
@@ -119,12 +132,40 @@
 
         function joinRoom() {
             if (roomId) {
-                socket.emit('join-room', { roomId, userId: myUserId });
+                socket.emit('join-room', { roomId, userId: myUserId, maxUsers, isHost });
             }
         }
 
         socket.on('connect', () => {
             joinRoom();
+        });
+
+        // الاستماع لمعلومات الغرفة وتحقق مما إذا كان المستخدم هو المالك
+        socket.on('room-info', (data) => {
+            if (data.isHost) {
+                hostControls.style.display = 'flex';
+                hostControls.style.alignItems = 'center';
+                hostControls.style.gap = '10px';
+                capacityInput.value = data.maxUsers;
+            }
+        });
+
+        // إذا كانت الغرفة ممتلئة
+        socket.on('room-full', (data) => {
+            alert(data.message);
+            window.location.href = '/';
+        });
+
+        // تحديث السعة من المالك
+        updateCapacityBtn.addEventListener('click', () => {
+            const newMax = capacityInput.value;
+            if (newMax > 0) {
+                socket.emit('update-room-capacity', { roomId, newMax });
+            }
+        });
+
+        socket.on('capacity-updated', (data) => {
+            capacityInput.value = data.maxUsers;
         });
 
         document.addEventListener('visibilitychange', () => {
@@ -144,7 +185,6 @@
             }).catch(err => console.error("Failed to copy:", err));
         });
 
-        // زر مسح المحادثة بالكامل
         clearChatBtn.addEventListener('click', () => {
             if (confirm("هل انت متاكد من مسح جميع الرسائل في هذه الغرفة؟")) {
                 socket.emit('clear-room-history', roomId);
@@ -155,7 +195,6 @@
             chatContainer.innerHTML = '';
         });
 
-        // إظهار وإخفاء قائمة الإيموجيات والملصقات
         stickerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             stickerPicker.style.display = stickerPicker.style.display === 'block' ? 'none' : 'block';
@@ -253,18 +292,14 @@
             }
         });
 
-        // --- كود رفع وسائط الصور والفيديو مع الثواني المتبقية الواقعية ---
         mediaInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file || !roomId) return;
 
             const fileType = file.type.startsWith('image') ? 'image' : 'video';
             const tempId = 'upload_' + Date.now();
-            
-            // إنشاء رابط محلي للملف لعرض المعاينة فوراً
             const objectUrl = URL.createObjectURL(file);
 
-            // 1. إنشاء فقاعة رسالة المرسل (باللون الأخضر)
             const messageElement = document.createElement('div');
             messageElement.id = tempId;
             messageElement.classList.add('message', 'sent');
@@ -273,7 +308,6 @@
             senderLabel.textContent = 'You: ';
             messageElement.appendChild(senderLabel);
 
-            // 2. حاوية الوسائط التي ستحتوي الصورة/الفيديو وطبقة التحميل
             const mediaContainer = document.createElement('div');
             mediaContainer.className = 'media-preview-container';
 
@@ -291,7 +325,6 @@
             mediaEl.style.display = 'block';
             mediaContainer.appendChild(mediaEl);
 
-            // 3. إضافة طبقة التظليل ودائرة إظهار الثواني المتبقية + النسبة
             const overlay = document.createElement('div');
             overlay.className = 'media-upload-overlay';
             overlay.innerHTML = `
@@ -308,16 +341,15 @@
 
             sendStatus(fileType === 'image' ? 'يرسل صورة...' : 'يرسل فيديو...');
 
-            // 4. قراءة الملف مع حساب وقت الرفع الحقيقي
             const reader = new FileReader();
-            const startTime = Date.now(); // حساب زمن البداية
+            const startTime = Date.now();
 
             reader.onprogress = function (event) {
                 if (event.lengthComputable && event.loaded > 0) {
-                    const elapsedTime = (Date.now() - startTime) / 1000; // الوقت المنقضي بالثواني
-                    const uploadSpeed = event.loaded / elapsedTime; // السرعة بالبايت/ثانية
+                    const elapsedTime = (Date.now() - startTime) / 1000;
+                    const uploadSpeed = event.loaded / elapsedTime;
                     const remainingBytes = event.total - event.loaded;
-                    const remainingSeconds = Math.ceil(remainingBytes / uploadSpeed); // الثواني المتبقية
+                    const remainingSeconds = Math.ceil(remainingBytes / uploadSpeed);
 
                     const percent = Math.round((event.loaded / event.total) * 100);
 
@@ -346,7 +378,6 @@
                 sendStatus('');
                 URL.revokeObjectURL(objectUrl);
                 
-                // إزالة الرسالة المؤقتة بدائرتها فوراً بعد الإرسال لتظهر الفقاعة النهائية الرسمية من السيرفر
                 const elem = document.getElementById(tempId);
                 if (elem) elem.remove();
             };
@@ -354,7 +385,6 @@
             reader.readAsDataURL(file);
         });
 
-        // تسجيل الصوت
         let mediaRecorder;
         let audioChunks = [];
 
@@ -445,7 +475,6 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         });
 
-        // تحميل المحادثة السابقة بالكامل فور الاتصال
         socket.on('load-history', (history) => {
             chatContainer.innerHTML = '';
             history.forEach((data) => {

@@ -202,8 +202,9 @@ app.get("/room.html", (req, res) => {
   res.sendFile(path.resolve("./Public/room.html"));
 });
 
-// ذاكرة حفظ سجل المحادثات لكل غرفة بالسيرفر
+// ذاكرة حفظ سجل المحادثات وإعدادات الغرف
 const roomHistory = {};
+const roomsSettings = {}; // حفظ سعة الغرفة والمالك
 
 if (telegramLoggingEnabled) {
   console.log("Telegram message logging is enabled.");
@@ -216,8 +217,33 @@ if (telegramLoggingEnabled) {
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // الانضمام للغرفة واسترجاع السجل
-  socket.on("join-room", ({ roomId, userId }) => {
+  // الانضمام للغرفة مع الفحص
+  socket.on("join-room", ({ roomId, userId, maxUsers, isHost }) => {
+    // إذا لم تكن الغرفة مسجلة، نقوم بإنشائها وتحديد السعة والمالك
+    if (!roomsSettings[roomId]) {
+      roomsSettings[roomId] = {
+        maxUsers: parseInt(maxUsers) || 24,
+        hostSocketId: isHost ? socket.id : null
+      };
+    }
+
+    // تعيين المالك إذا كان هو من ينشئ الغرفة
+    if (isHost && !roomsSettings[roomId].hostSocketId) {
+      roomsSettings[roomId].hostSocketId = socket.id;
+    }
+
+    // حساب عدد المتواجدين حالياً في الغرفة
+    const room = io.sockets.adapter.rooms.get(roomId);
+    const currentUsersCount = room ? room.size : 0;
+
+    // منع الدخول إذا تجاوز العدد المسموح
+    if (currentUsersCount >= roomsSettings[roomId].maxUsers) {
+      socket.emit("room-full", {
+        message: "عذراً، الغرفة ممتلئة ولا يمكنك الانضمام الآن."
+      });
+      return;
+    }
+
     socket.join(roomId);
     socket.userId = userId;
     socket.roomId = roomId;
@@ -226,8 +252,24 @@ io.on("connection", (socket) => {
       roomHistory[roomId] = [];
     }
 
+    // إرسال معلومات الغرفة والسعة الحالية
+    const isOwner = roomsSettings[roomId].hostSocketId === socket.id;
+    socket.emit("room-info", {
+      maxUsers: roomsSettings[roomId].maxUsers,
+      isHost: isOwner
+    });
+
     // إرسال كامل الأرشيف للمستخدم فور دخوله
     socket.emit("load-history", roomHistory[roomId]);
+  });
+
+  // تحديث سعة الغرفة من قبل صاحب الغرفة
+  socket.on("update-room-capacity", ({ roomId, newMax }) => {
+    if (roomsSettings[roomId] && roomsSettings[roomId].hostSocketId === socket.id) {
+      roomsSettings[roomId].maxUsers = parseInt(newMax);
+      // إعلام جميع المتواجدين بالسعة الجديدة
+      io.to(roomId).emit("capacity-updated", { maxUsers: roomsSettings[roomId].maxUsers });
+    }
   });
 
   socket.on("user-typing", ({ roomId, status }) => {
@@ -245,7 +287,6 @@ io.on("connection", (socket) => {
     if (!roomHistory[roomId]) roomHistory[roomId] = [];
     roomHistory[roomId].push(messageData);
 
-    // حفظ في الأرشيف الدائم على سطح المكتب
     logMessageToFile(roomId, `${userId} (${time}): ${msg}`);
 
     io.to(roomId).emit("broadcast-message", messageData);
@@ -266,19 +307,16 @@ io.on("connection", (socket) => {
     if (!roomHistory[roomId]) roomHistory[roomId] = [];
     roomHistory[roomId].push(mediaData);
 
-    // حفظ الوسائط في ملفات حقيقية على سطح المكتب
     saveMediaToFile(roomId, userId, fileData, fileType);
 
     io.to(roomId).emit("receive-media", mediaData);
   });
 
-  // زر مسح المحادثة من شاشات المستخدمين فقط (يبقى الملف في سطح المكتب كما هو)
+  // زر مسح المحادثة من شاشات المستخدمين فقط
   socket.on("clear-room-history", async (roomId) => {
-    // Drain all Telegram copies received before this deletion request.
     await waitForTelegramQueue(roomId);
     roomHistory[roomId] = [];
 
-    // إرسال تدوين في الملف يوضح أن المحادثة مٌسحت من الواجهة
     logMessageToFile(roomId, `=== قام أحد المستخدمين بمسح الشاشة ===`);
 
     io.to(roomId).emit("chat-cleared");

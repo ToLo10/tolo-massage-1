@@ -11,7 +11,17 @@
 <body>
     <h1>Welcome to the TOMI</h1>
     <div class="room-container">
+        <label for="maxUsersSelect" style="color: white; display: block; margin-bottom: 5px;">Max Users:</label>
+        <select id="maxUsersSelect" style="padding: 10px; margin-bottom: 10px; border-radius: 5px; width: 100%;">
+            <script>
+                for (let i = 1; i <= 24; i++) {
+                    document.write(`<option value="${i}" ${i === 4 ? 'selected' : ''}>${i} ${i === 1 ? 'User' : 'Users'}</option>`);
+                }
+            </script>
+        </select>
+
         <button id="createRoom">Create Room</button>
+        <hr style="margin: 15px 0; border: 0.5px solid #444;">
         <input type="text" id="roomIdInput" placeholder="Enter Room ID">
         <button id="joinRoom">Join Room</button>
     </div>
@@ -19,7 +29,10 @@
 <script>
     document.getElementById('createRoom').addEventListener('click', () => {
         const roomId = Math.random().toString(36).substring(2, 8); // Generate random Room ID
-        window.location.href = `/room.html?roomId=${roomId}`;
+        const maxUsers = document.getElementById('maxUsersSelect').value; // جلب عدد الأعضاء المحدد
+        
+        // تمرير السعة المختارة عبر URL عند إنشاء الغرفة
+        window.location.href = `/room.html?roomId=${roomId}&maxUsers=${maxUsers}&isHost=true`;
     });
 
     document.getElementById('joinRoom').addEventListener('click', () => {
