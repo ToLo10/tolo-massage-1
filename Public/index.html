@@ -9,8 +9,12 @@
 </head>
 
 <body>
-    <h1>Welcome to the TOMI</h1>
+    <h1>Welcome to TOMI</h1>
     <div class="room-container">
+        <!-- حقل إدخال الاسم المستعار -->
+        <label for="usernameInput" style="color: white; display: block; margin-bottom: 5px;">Your Name:</label>
+        <input type="text" id="usernameInput" placeholder="Enter your name..." style="padding: 10px; margin-bottom: 15px; border-radius: 5px; width: 100%; box-sizing: border-box;">
+
         <label for="maxUsersSelect" style="color: white; display: block; margin-bottom: 5px;">Max Users:</label>
         <select id="maxUsersSelect" style="padding: 10px; margin-bottom: 10px; border-radius: 5px; width: 100%;">
             <script>
@@ -25,24 +29,49 @@
         <input type="text" id="roomIdInput" placeholder="Enter Room ID">
         <button id="joinRoom">Join Room</button>
     </div>
-</body>
-<script>
-    document.getElementById('createRoom').addEventListener('click', () => {
-        const roomId = Math.random().toString(36).substring(2, 8); // Generate random Room ID
-        const maxUsers = document.getElementById('maxUsersSelect').value; // جلب عدد الأعضاء المحدد
-        
-        // تمرير السعة المختارة عبر URL عند إنشاء الغرفة
-        window.location.href = `/room.html?roomId=${roomId}&maxUsers=${maxUsers}&isHost=true`;
-    });
 
-    document.getElementById('joinRoom').addEventListener('click', () => {
-        const roomId = document.getElementById('roomIdInput').value.trim();
-        if (roomId) {
-            window.location.href = `/room.html?roomId=${roomId}`;
-        } else {
-            alert("Enter a valid Room ID");
+    <script>
+        const usernameInput = document.getElementById('usernameInput');
+
+        // استرجاع الاسم المحفوظ إن وجد تلقائياً عند فتح الصفحة
+        const savedUsername = localStorage.getItem('chat_username');
+        if (savedUsername) {
+            usernameInput.value = savedUsername;
         }
-    });
-</script>
+
+        // دالة للتحقق من الاسم وحفظه
+        function getAndSaveUsername() {
+            const username = usernameInput.value.trim();
+            if (!username) {
+                alert("Please enter your name first!");
+                return null;
+            }
+            localStorage.setItem('chat_username', username);
+            return username;
+        }
+
+        document.getElementById('createRoom').addEventListener('click', () => {
+            const username = getAndSaveUsername();
+            if (!username) return;
+
+            const roomId = Math.random().toString(36).substring(2, 8);
+            const maxUsers = document.getElementById('maxUsersSelect').value;
+            
+            window.location.href = `/room.html?roomId=${roomId}&maxUsers=${maxUsers}&isHost=true`;
+        });
+
+        document.getElementById('joinRoom').addEventListener('click', () => {
+            const username = getAndSaveUsername();
+            if (!username) return;
+
+            const roomId = document.getElementById('roomIdInput').value.trim();
+            if (roomId) {
+                window.location.href = `/room.html?roomId=${roomId}`;
+            } else {
+                alert("Enter a valid Room ID");
+            }
+        });
+    </script>
+</body>
 
 </html>

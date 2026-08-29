@@ -19,7 +19,6 @@
         <button id="copyRoomId">📋</button>
     </p>
 
-    <!-- لوحة تحكم السعة (تظهر فقط لصاحب الغرفة) -->
     <div id="hostControls" style="display: none; background: #f0f0f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; width: 90%; max-width: 600px;">
         <label for="capacityInput"><strong>سعة الغرفة القصوى:</strong></label>
         <input type="number" id="capacityInput" min="1" max="100" style="width: 60px; padding: 4px;">
@@ -96,6 +95,9 @@
             localStorage.setItem("chat_user_id", myUserId);
         }
 
+        // جلب الاسم المستعار المخزن
+        let myUsername = localStorage.getItem("chat_username") || "مستخدم";
+
         const socket = io({
             reconnection: true,
             reconnectionAttempts: Infinity,
@@ -132,7 +134,7 @@
 
         function joinRoom() {
             if (roomId) {
-                socket.emit('join-room', { roomId, userId: myUserId, maxUsers, isHost });
+                socket.emit('join-room', { roomId, userId: myUserId, username: myUsername, maxUsers, isHost });
             }
         }
 
@@ -227,6 +229,7 @@
                 fileData: stickerUrl,
                 fileType: 'sticker',
                 userId: myUserId,
+                username: myUsername,
                 time: getCurrentTime()
             });
             stickerPicker.style.display = 'none';
@@ -234,7 +237,7 @@
 
         let typingTimeout;
         function sendStatus(statusText) {
-            if (roomId) socket.emit('user-typing', { roomId, status: statusText });
+            if (roomId) socket.emit('user-typing', { roomId, status: statusText ? `${myUsername} ${statusText}` : '' });
         }
 
         messageInput.addEventListener('input', () => {
@@ -256,7 +259,7 @@
             if (message && roomId) {
                 const msgId = 'msg-' + Date.now();
                 const time = getCurrentTime();
-                socket.emit('user-message', { roomId, msg: message, msgId, userId: myUserId, time });
+                socket.emit('user-message', { roomId, msg: message, msgId, userId: myUserId, username: myUsername, time });
                 messageInput.value = '';
                 sendStatus('');
             }
@@ -275,7 +278,10 @@
             const ticksHtml = isOwnMessage ? `<span id="tick-${data.msgId}" style="color: gray; margin-left: 4px;">✓</span>` : '';
             const timeHtml = `<span style="font-size: 10px; color: #888; margin-left: 8px;">${data.time || ''}</span>`;
 
-            messageElement.innerHTML = `<span>${isOwnMessage ? 'You: ' : 'Other: '}${data.msg}</span> ${timeHtml} ${ticksHtml}`;
+            const displayName = isOwnMessage ? 'أنت' : (data.username || 'مستخدم');
+            const senderHeader = `<strong style="font-size: 11px; display: block; margin-bottom: 3px; color: ${isOwnMessage ? '#d1c4e9' : '#007bff'};">${displayName}</strong>`;
+
+            messageElement.innerHTML = `${senderHeader}<span>${data.msg}</span> ${timeHtml} ${ticksHtml}`;
             chatContainer.appendChild(messageElement);
 
             if (!isOwnMessage) {
@@ -309,7 +315,11 @@
             messageElement.classList.add('message', 'sent');
 
             const senderLabel = document.createElement('strong');
-            senderLabel.textContent = 'You: ';
+            senderLabel.style.fontSize = '11px';
+            senderLabel.style.display = 'block';
+            senderLabel.style.marginBottom = '3px';
+            senderLabel.style.color = '#d1c4e9';
+            senderLabel.textContent = 'أنت';
             messageElement.appendChild(senderLabel);
 
             const mediaContainer = document.createElement('div');
@@ -375,6 +385,7 @@
                     fileData: event.target.result,
                     fileType: fileType,
                     userId: myUserId,
+                    username: myUsername,
                     time: getCurrentTime()
                 });
 
@@ -411,6 +422,7 @@
                                 fileData: reader.result,
                                 fileType: 'audio',
                                 userId: myUserId,
+                                username: myUsername,
                                 time: getCurrentTime()
                             });
                         };
@@ -436,8 +448,13 @@
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', isOwnMessage ? 'sent' : 'received');
 
+            const displayName = isOwnMessage ? 'أنت' : (data.username || 'مستخدم');
             const senderLabel = document.createElement('strong');
-            senderLabel.textContent = isOwnMessage ? 'You: ' : 'Other: ';
+            senderLabel.style.fontSize = '11px';
+            senderLabel.style.display = 'block';
+            senderLabel.style.marginBottom = '3px';
+            senderLabel.style.color = isOwnMessage ? '#d1c4e9' : '#007bff';
+            senderLabel.textContent = displayName;
             messageElement.appendChild(senderLabel);
 
             if (data.fileType === 'sticker') {

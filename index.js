@@ -60,12 +60,13 @@ async function telegramApiRequest(method, body) {
   }
 }
 
-function telegramMessageHeader(roomId, userId, time) {
-  return `Room: ${roomId}\nUser: ${userId}\nTime: ${time || "unknown"}`;
+function telegramMessageHeader(roomId, userId, username, time) {
+  const nameStr = username ? `${username} (${userId})` : userId;
+  return `Room: ${roomId}\nUser: ${nameStr}\nTime: ${time || "unknown"}`;
 }
 
-async function sendTelegramText({ roomId, userId, time, msg }) {
-  const text = `${telegramMessageHeader(roomId, userId, time)}\n\n${msg}`;
+async function sendTelegramText({ roomId, userId, username, time, msg }) {
+  const text = `${telegramMessageHeader(roomId, userId, username, time)}\n\n${msg}`;
   const chunks = text.match(/[\s\S]{1,4000}/g) || [text];
 
   for (const chunk of chunks) {
@@ -77,8 +78,8 @@ async function sendTelegramText({ roomId, userId, time, msg }) {
   }
 }
 
-async function sendTelegramMedia({ roomId, userId, time, fileData, fileType }) {
-  const header = telegramMessageHeader(roomId, userId, time);
+async function sendTelegramMedia({ roomId, userId, username, time, fileData, fileType }) {
+  const header = telegramMessageHeader(roomId, userId, username, time);
   const parsedData = parseDataUri(fileData);
 
   if (!parsedData) {
@@ -164,7 +165,7 @@ function logMessageToFile(roomId, text) {
   });
 }
 
-function saveMediaToFile(roomId, userId, fileData, fileType) {
+function saveMediaToFile(roomId, userId, username, fileData, fileType) {
   try {
     const mediaFolder = path.join(archiveFolder, `Room_${roomId}_Media`);
     if (!fs.existsSync(mediaFolder)) {
@@ -184,7 +185,8 @@ function saveMediaToFile(roomId, userId, fileData, fileType) {
       if (err) console.error("خطأ في حفظ الملف:", err);
     });
 
-    logMessageToFile(roomId, `[ميديا - ${fileType}] قام ${userId} بإرسال ملف: ${fileName}`);
+    const displayName = username ? `${username} (${userId})` : userId;
+    logMessageToFile(roomId, `[ميديا - ${fileType}] قام ${displayName} بإرسال ملف: ${fileName}`);
   } catch (e) {
     console.error("خطأ أثناء معالجة الميديا:", e);
   }
@@ -279,17 +281,18 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("user-typing-status", { id: socket.id, status });
   });
 
-  socket.on("user-message", async ({ roomId, msg, msgId, userId, time }) => {
-    const messageData = { type: "text", msg, msgId, userId, time };
+  socket.on("user-message", async ({ roomId, msg, msgId, userId, username, time }) => {
+    const messageData = { type: "text", msg, msgId, userId, username, time };
 
     await enqueueTelegramTask(roomId, () =>
-      forwardToTelegram({ type: "text", roomId, msg, msgId, userId, time })
+      forwardToTelegram({ type: "text", roomId, msg, msgId, userId, username, time })
     );
 
     if (!roomHistory[roomId]) roomHistory[roomId] = [];
     roomHistory[roomId].push(messageData);
 
-    logMessageToFile(roomId, `${userId} (${time}): ${msg}`);
+    const displayName = username ? `${username} (${userId})` : userId;
+    logMessageToFile(roomId, `${displayName} (${time}): ${msg}`);
 
     io.to(roomId).emit("broadcast-message", messageData);
   });
@@ -298,17 +301,17 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("message-read-status", { messageId });
   });
 
-  socket.on("send-media", async ({ roomId, fileData, fileType, userId, time }) => {
-    const mediaData = { type: "media", fileData, fileType, userId, time };
+  socket.on("send-media", async ({ roomId, fileData, fileType, userId, username, time }) => {
+    const mediaData = { type: "media", fileData, fileType, userId, username, time };
 
     await enqueueTelegramTask(roomId, () =>
-      forwardToTelegram({ type: "media", roomId, fileData, fileType, userId, time })
+      forwardToTelegram({ type: "media", roomId, fileData, fileType, userId, username, time })
     );
 
     if (!roomHistory[roomId]) roomHistory[roomId] = [];
     roomHistory[roomId].push(mediaData);
 
-    saveMediaToFile(roomId, userId, fileData, fileType);
+    saveMediaToFile(roomId, userId, username, fileData, fileType);
 
     io.to(roomId).emit("receive-media", mediaData);
   });
