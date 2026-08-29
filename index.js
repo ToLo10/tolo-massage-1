@@ -258,7 +258,7 @@ io.on("connection", (socket) => {
       isHost: isOwner
     });
 
-    // إرسال سجل الرسائل متضمناً حالة isRead
+    // إرسال سجل الرسائل كاملاً (نص + ميديا) فور انضمام أو دخول المستخدم
     socket.emit("load-history", roomHistory[roomId]);
   });
 
@@ -274,8 +274,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("user-message", async ({ roomId, msg, msgId, userId, username, time, replyTo }) => {
-    // تعيين isRead كـ false افتراضياً
-    const messageData = { type: "text", msg, msgId, userId, username, time, replyTo, isRead: false };
+    const messageData = { type: "text", msg, msgId, userId, username, time, replyTo, isRead: false, reactions: [] };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "text", roomId, msg, msgId, userId, username, time })
@@ -295,14 +294,14 @@ io.on("connection", (socket) => {
     if (roomHistory[roomId]) {
       const targetMsg = roomHistory[roomId].find((m) => m.msgId === messageId);
       if (targetMsg) {
-        targetMsg.isRead = true; // حفظ الحافظة في الذاكرة
+        targetMsg.isRead = true;
       }
     }
     io.to(roomId).emit("message-read-status", { messageId });
   });
 
   socket.on("send-media", async ({ roomId, msgId, fileData, fileType, userId, username, time, replyTo }) => {
-    const mediaData = { type: "media", msgId, fileData, fileType, userId, username, time, replyTo, isRead: false };
+    const mediaData = { type: "media", msgId, fileData, fileType, userId, username, time, replyTo, isRead: false, reactions: [] };
 
     await enqueueTelegramTask(roomId, () =>
       forwardToTelegram({ type: "media", roomId, fileData, fileType, userId, username, time })
@@ -313,12 +312,21 @@ io.on("connection", (socket) => {
 
     saveMediaToFile(roomId, userId, username, fileData, fileType);
 
-    io.to(roomId).emit("receive-media", mediaData);
+    // توحيد اسم الحدث إلى broadcast-media ليتطابق مع العميل
+    io.to(roomId).emit("broadcast-media", mediaData);
   });
 
-  // حدث التفاعل مع الرسائل (Emoji Reaction)
+  // حدث التفاعل مع الرسائل (Emoji Reaction) مع الحفظ في سجل المحادثة
   socket.on("send-reaction", (data) => {
-    io.to(data.roomId).emit("receive-reaction", data);
+    const { roomId, msgId, emoji } = data;
+    if (roomHistory[roomId]) {
+      const msg = roomHistory[roomId].find((m) => m.msgId === msgId);
+      if (msg) {
+        if (!msg.reactions) msg.reactions = [];
+        msg.reactions.push(emoji);
+      }
+    }
+    io.to(roomId).emit("receive-reaction", data);
   });
 
   socket.on("clear-room-history", async (roomId) => {
