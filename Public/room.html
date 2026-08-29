@@ -140,7 +140,6 @@
             joinRoom();
         });
 
-        // الاستماع لمعلومات الغرفة وتحقق مما إذا كان المستخدم هو المالك
         socket.on('room-info', (data) => {
             if (data.isHost) {
                 hostControls.style.display = 'flex';
@@ -150,13 +149,11 @@
             }
         });
 
-        // إذا كانت الغرفة ممتلئة
         socket.on('room-full', (data) => {
             alert(data.message);
             window.location.href = '/';
         });
 
-        // تحديث السعة من المالك
         updateCapacityBtn.addEventListener('click', () => {
             const newMax = capacityInput.value;
             if (newMax > 0) {
@@ -195,11 +192,18 @@
             chatContainer.innerHTML = '';
         });
 
+        // منع إغلاق القائمة عند النقر بداخلها
+        stickerPicker.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // فتح وإغلاق النافذة عند النقر على الزر
         stickerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             stickerPicker.style.display = stickerPicker.style.display === 'block' ? 'none' : 'block';
         });
 
+        // إغلاق النافذة عند النقر في أي مكان آخر في الصفحة
         document.addEventListener('click', () => {
             stickerPicker.style.display = 'none';
         });
